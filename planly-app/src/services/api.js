@@ -6,6 +6,10 @@ const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
 });
 
+export const setAccessToken = (token) => {
+  global.accessToken = token;
+};
+
 api.interceptors.request.use((config) => {
   const token = global.accessToken;
   if (token) {
