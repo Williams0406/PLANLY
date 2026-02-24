@@ -3,7 +3,7 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import AuthNavigator from "./AuthNavigator";
-import MainTabNavigator from "./MainTabNavigator";
+import TabNavigator from "./TabNavigator";
 import { useAuth } from "../features/auth/useAuth";
 import { View, ActivityIndicator } from "react-native";
 
@@ -12,7 +12,7 @@ export default function RootNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -20,7 +20,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer>
-      {user ? <MainTabNavigator /> : <AuthNavigator />}
+      {user ? <TabNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   );
 }

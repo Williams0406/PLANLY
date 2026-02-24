@@ -1,23 +1,28 @@
 // src/screens/groups/GroupsScreen.js
 
 import React from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Button,
-  StyleSheet,
-} from "react-native";
+import { View, Text, FlatList, Button, StyleSheet, Alert } from "react-native";
 import { useGroups } from "../../features/groups/useGroups";
 
 export default function GroupsScreen() {
-  const { grupos, createGrupo } = useGroups();
+  const { grupos, createGrupo, loadGrupos } = useGroups();
 
   const handleCreate = async () => {
-    await createGrupo({
-      nombre: "Nuevo Grupo",
-      descripcion: "Grupo creado desde app",
-    });
+    try {
+      await createGrupo({
+        nombre: "Nuevo Grupo",
+        descripcion: "Grupo creado desde app",
+      });
+      await loadGrupos();
+      Alert.alert("Listo", "Grupo creado correctamente");
+    } catch (error) {
+      Alert.alert(
+        "No se pudo crear el grupo",
+        error?.response?.data
+          ? JSON.stringify(error.response.data)
+          : "Revisa tu sesión o la conexión con la API."
+      );
+    }
   };
 
   return (
