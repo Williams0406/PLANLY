@@ -3,15 +3,15 @@ from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
 from django_filters.rest_framework import DjangoFilterBackend
-
 
 from .models import Entidad, Servicio
 from .serializers import (
     EntidadSerializer,
     ServicioSerializer,
-    ServicioPublicoSerializer
+    ServicioPublicoSerializer,
+    ServicioDetalleSerializer
 )
 from .permissions import IsEntidad, IsEntidadOwner
 
@@ -78,4 +78,26 @@ class ServicioPublicoViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["lugar"]
     search_fields = ["nombre", "descripcion", "lugar"]
+
+class ServicioPublicoDetalleView(generics.RetrieveAPIView):
+    serializer_class = ServicioDetalleSerializer
+    permission_classes = [AllowAny]
+    queryset = Servicio.objects.filter(activo=True, entidad__aprobado=True)
+
+
+class ServicioPublicoListadoView(generics.ListAPIView):
+    serializer_class = ServicioDetalleSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["lugar"]
+    search_fields = ["nombre", "descripcion", "lugar", "entidad__nombre_comercial"]
+    ordering_fields = ["costo_regular", "created_at"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        qs = Servicio.objects.filter(activo=True, entidad__aprobado=True)
+        tiene_promocion = self.request.query_params.get("promocion")
+        if tiene_promocion == "true":
+            qs = qs.filter(tiene_promocion=True)
+        return qs
 

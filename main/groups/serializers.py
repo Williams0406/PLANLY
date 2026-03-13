@@ -1,11 +1,19 @@
-# groups/serializers.py
-from rest_framework import serializers
 from django.utils import timezone
-from .models import Grupo, MiembroGrupo, PlanGrupal, ParticipacionPlan
+from rest_framework import serializers
+
+from .models import (
+    ActividadPlan,
+    ActividadServicio,
+    Grupo,
+    MiembroGrupo,
+    ParticipacionPlan,
+    PlanGrupal,
+    SolicitudCambioPlan,
+    VotoCambioPlan,
+)
 
 
 class GrupoSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Grupo
         fields = "__all__"
@@ -19,69 +27,122 @@ class GrupoSerializer(serializers.ModelSerializer):
 
         grupo = Grupo.objects.create(creado_por=user, **validated_data)
 
-        MiembroGrupo.objects.create(
-            grupo=grupo,
-            usuario=user,
-            rol="admin"
-        )
+        MiembroGrupo.objects.create(grupo=grupo, usuario=user, rol="admin")
 
         return grupo
 
-class PlanGrupalSerializer(serializers.ModelSerializer):
 
+class PlanGrupalSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlanGrupal
         fields = "__all__"
-        read_only_fields = ["creado_por", "estado"]
+        read_only_fields = ["creado_por", "estado", "lider"]
 
     def validate(self, data):
         user = self.context["request"].user
-        grupo = data["grupo"]
+        grupo = data.get("grupo")
+        tipo_plan = data.get("tipo_plan", getattr(self.instance, "tipo_plan", "grupal"))
 
-        if not MiembroGrupo.objects.filter(
-            grupo=grupo,
-            usuario=user,
-            activo=True
-        ).exists():
-            raise serializers.ValidationError(
-                "Solo miembros del grupo pueden crear planes."
-            )
+        if tipo_plan == "grupal":
+            if not grupo:
+                raise serializers.ValidationError("Los planes grupales requieren grupo.")
+
+            if not MiembroGrupo.objects.filter(grupo=grupo, usuario=user, activo=True).exists():
+                raise serializers.ValidationError("Solo miembros del grupo pueden crear/editar planes grupales.")
+
+        if tipo_plan == "individual" and grupo:
+            raise serializers.ValidationError("Un plan individual no debe tener grupo.")
+
+        fecha_inicio = data.get("fecha_inicio", getattr(self.instance, "fecha_inicio", None))
+        fecha_fin = data.get("fecha_fin", getattr(self.instance, "fecha_fin", None))
+        if fecha_inicio and fecha_fin and fecha_inicio >= fecha_fin:
+            raise serializers.ValidationError("La fecha/hora de fin debe ser posterior al inicio.")
 
         return data
 
     def create(self, validated_data):
         user = self.context["request"].user
-        grupo = validated_data["grupo"]
+        grupo = validated_data.get("grupo")
 
         plan = PlanGrupal.objects.create(
             creado_por=user,
+            lider=user,
             estado="propuesto",
-            **validated_data
+            **validated_data,
         )
 
-        # Crear participaciones automáticas
-        miembros = MiembroGrupo.objects.filter(grupo=grupo, activo=True)
-
-        for miembro in miembros:
-            ParticipacionPlan.objects.create(
-                plan=plan,
-                usuario=miembro.usuario
-            )
+        if plan.tipo_plan == "grupal":
+            miembros = MiembroGrupo.objects.filter(grupo=grupo, activo=True)
+            for miembro in miembros:
+                ParticipacionPlan.objects.create(plan=plan, usuario=miembro.usuario)
 
         return plan
 
-class ParticipacionPlanSerializer(serializers.ModelSerializer):
 
+class ActividadPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActividadPlan
+        fields = "__all__"
+
+    def validate(self, data):
+        if data["fecha_inicio"] >= data["fecha_fin"]:
+            raise serializers.ValidationError("La fecha/hora de fin debe ser posterior al inicio.")
+
+        plan = data["plan"]
+        if plan.fecha_inicio and data["fecha_inicio"] < plan.fecha_inicio:
+            raise serializers.ValidationError("La actividad no puede iniciar antes del plan.")
+        if plan.fecha_fin and data["fecha_fin"] > plan.fecha_fin:
+            raise serializers.ValidationError("La actividad no puede finalizar después del plan.")
+
+        return data
+
+
+class ActividadServicioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActividadServicio
+        fields = "__all__"
+        read_only_fields = ["usuario_asignador", "estado", "movimiento_pago"]
+
+    def validate(self, data):
+        if data["fecha_inicio"] >= data["fecha_fin"]:
+            raise serializers.ValidationError("La fecha/hora de fin debe ser posterior al inicio.")
+
+        actividad = data["actividad"]
+        if data["fecha_inicio"] < actividad.fecha_inicio or data["fecha_fin"] > actividad.fecha_fin:
+            raise serializers.ValidationError("El servicio debe estar dentro de la ventana horaria de la actividad.")
+
+        return data
+
+    def create(self, validated_data):
+        validated_data["usuario_asignador"] = self.context["request"].user
+        validated_data["estado"] = "interes"
+        return super().create(validated_data)
+
+
+class ParticipacionPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParticipacionPlan
         fields = "__all__"
         read_only_fields = ["plan", "usuario", "fecha_respuesta"]
 
     def update(self, instance, validated_data):
-        instance.acepta_participar = validated_data.get(
-            "acepta_participar",
-            instance.acepta_participar
-        )
+        instance.acepta_participar = validated_data.get("acepta_participar", instance.acepta_participar)
         instance.fecha_respuesta = timezone.now()
         instance.save()
         return instance
+
+
+class VotoCambioPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VotoCambioPlan
+        fields = "__all__"
+        read_only_fields = ["solicitud", "usuario", "fecha_voto"]
+
+
+class SolicitudCambioPlanSerializer(serializers.ModelSerializer):
+    votos = VotoCambioPlanSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SolicitudCambioPlan
+        fields = "__all__"
+        read_only_fields = ["solicitado_por", "estado", "created_at"]

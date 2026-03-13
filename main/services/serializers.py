@@ -100,3 +100,37 @@ class ServicioPublicoSerializer(serializers.ModelSerializer):
 
     def get_precio_actual(self, obj):
         return obj.precio_actual()
+
+class ServicioDetalleSerializer(serializers.ModelSerializer):
+    """Serializer completo para la web"""
+    entidad_nombre = serializers.CharField(
+        source="entidad.nombre_comercial", read_only=True
+    )
+    entidad_direccion = serializers.CharField(
+        source="entidad.direccion", read_only=True
+    )
+    precio_actual = serializers.SerializerMethodField()
+    descuento_porcentaje = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Servicio
+        fields = [
+            "id", "nombre", "descripcion", "lugar",
+            "hora_inicio", "hora_fin", "capacidad_maxima",
+            "costo_regular", "tiene_promocion", "costo_promocional",
+            "precio_actual", "descuento_porcentaje",
+            "entidad_nombre", "entidad_direccion",
+            "imagen_principal", "activo", "created_at",
+        ]
+
+    def get_precio_actual(self, obj):
+        return obj.precio_actual()
+
+    def get_descuento_porcentaje(self, obj):
+        if obj.tiene_promocion and obj.costo_promocional:
+            descuento = (
+                (obj.costo_regular - obj.costo_promocional)
+                / obj.costo_regular * 100
+            )
+            return round(descuento, 1)
+        return 0
