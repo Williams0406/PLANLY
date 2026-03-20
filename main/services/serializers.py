@@ -81,6 +81,8 @@ class ServicioSerializer(serializers.ModelSerializer):
 class ServicioPublicoSerializer(serializers.ModelSerializer):
 
     entidad_nombre = serializers.CharField(source="entidad.nombre_comercial", read_only=True)
+    entidad_direccion = serializers.CharField(source="entidad.direccion", read_only=True)
+    entidad_contacto = serializers.CharField(source="entidad.contacto_referencia", read_only=True)
     precio_actual = serializers.SerializerMethodField()
 
     class Meta:
@@ -95,6 +97,8 @@ class ServicioPublicoSerializer(serializers.ModelSerializer):
             "capacidad_maxima",
             "precio_actual",
             "entidad_nombre",
+            "entidad_direccion",
+            "entidad_contacto",
             "imagen_principal",
         ]
 
@@ -109,6 +113,9 @@ class ServicioDetalleSerializer(serializers.ModelSerializer):
     entidad_direccion = serializers.CharField(
         source="entidad.direccion", read_only=True
     )
+    entidad_contacto_referencia = serializers.CharField(
+        source="entidad.contacto_referencia", read_only=True
+    )
     precio_actual = serializers.SerializerMethodField()
     descuento_porcentaje = serializers.SerializerMethodField()
 
@@ -119,7 +126,7 @@ class ServicioDetalleSerializer(serializers.ModelSerializer):
             "hora_inicio", "hora_fin", "capacidad_maxima",
             "costo_regular", "tiene_promocion", "costo_promocional",
             "precio_actual", "descuento_porcentaje",
-            "entidad_nombre", "entidad_direccion",
+            "entidad_nombre", "entidad_direccion", "entidad_contacto_referencia",
             "imagen_principal", "activo", "created_at",
         ]
 

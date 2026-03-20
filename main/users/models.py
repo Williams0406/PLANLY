@@ -16,6 +16,7 @@ class User(AbstractUser):
     def __str__(self):
         return self.username
 
+
 class PersonaProfile(models.Model):
 
     TIPO_DOCUMENTO_CHOICES = (
@@ -51,6 +52,7 @@ class PersonaProfile(models.Model):
     def __str__(self):
         return f"{self.nombres} {self.apellidos}"
 
+
 class PersonaPhoto(models.Model):
     persona = models.ForeignKey(
         PersonaProfile,
@@ -67,3 +69,23 @@ class PersonaPhoto(models.Model):
 
     class Meta:
         ordering = ["orden"]
+
+
+class FriendRequest(models.Model):
+    ESTADO_CHOICES = (
+        ("pendiente", "Pendiente"),
+        ("aceptada", "Aceptada"),
+        ("rechazada", "Rechazada"),
+    )
+
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friend_requests_sent")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friend_requests_received")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="pendiente")
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("sender", "receiver")
+
+    def __str__(self):
+        return f"{self.sender} -> {self.receiver} ({self.estado})"

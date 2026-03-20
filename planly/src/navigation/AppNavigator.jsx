@@ -1,29 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 
-import GroupsScreen from '../screens/groups/GroupsScreen';
-import GroupDetailScreen from '../screens/groups/GroupDetailScreen';
-import CreateGroupScreen from '../screens/groups/CreateGroupScreen';
+import PlansScreen from '../screens/plans/PlansScreen';
+import ContactsScreen from '../screens/contacts/ContactsScreen';
 import CatalogScreen from '../screens/services/CatalogScreen';
 import FinanceScreen from '../screens/finance/FinanceScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
-
-function GroupsStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="GroupsList" component={GroupsScreen} />
-      <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
-      <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-    </Stack.Navigator>
-  );
-}
 
 function TabIcon({ name, focused, color, size, badge }) {
   return (
@@ -64,8 +51,9 @@ export default function AppNavigator() {
         },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = {
-            GroupsTab: focused ? 'people' : 'people-outline',
-            Catalog: focused ? 'compass' : 'compass-outline',
+            Plan: focused ? 'calendar' : 'calendar-outline',
+            Contacts: focused ? 'people' : 'people-outline',
+            Services: focused ? 'compass' : 'compass-outline',
             Finance: focused ? 'wallet' : 'wallet-outline',
             Profile: focused ? 'person' : 'person-outline',
           };
@@ -80,26 +68,11 @@ export default function AppNavigator() {
         },
       })}
     >
-      <Tab.Screen
-        name="GroupsTab"
-        component={GroupsStack}
-        options={{ title: 'Grupos' }}
-      />
-      <Tab.Screen
-        name="Catalog"
-        component={CatalogScreen}
-        options={{ title: 'Explorar' }}
-      />
-      <Tab.Screen
-        name="Finance"
-        component={FinanceScreen}
-        options={{ title: 'Finanzas' }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Perfil' }}
-      />
+      <Tab.Screen name="Plan" component={PlansScreen} options={{ title: 'Plan' }} />
+      <Tab.Screen name="Contacts" component={ContactsScreen} options={{ title: 'Contactos' }} />
+      <Tab.Screen name="Services" component={CatalogScreen} options={{ title: 'Servicios' }} />
+      <Tab.Screen name="Finance" component={FinanceScreen} options={{ title: 'Finanzas' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Perfil' }} />
     </Tab.Navigator>
   );
 }

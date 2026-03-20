@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const authApi = {
   login: async (username, password) => {
-    const response = await client.post('/token/', { username, password });
+    const response = await client.post('/auth/login/', { username, password });
     const { access, refresh } = response.data;
     await SecureStore.setItemAsync('access_token', access);
     await SecureStore.setItemAsync('refresh_token', refresh);

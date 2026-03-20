@@ -70,6 +70,11 @@ class ServicioPublicoViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ServicioPublicoSerializer
     permission_classes = [AllowAny]
 
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return ServicioDetalleSerializer
+        return ServicioPublicoSerializer
+
     queryset = Servicio.objects.filter(
         activo=True,
         entidad__aprobado=True
