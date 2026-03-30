@@ -4,8 +4,8 @@ export const groupsApi = {
   getGrupos: () => client.get('/groups/grupos/'),
   createGrupo: (data) => client.post('/groups/grupos/', data),
   getGrupo: (id) => client.get(`/groups/grupos/${id}/`),
-  invitar: (grupoId, userId) =>
-    client.post(`/groups/grupos/${grupoId}/invitar/`, { user_id: userId }),
+  getMiembros: (id) => client.get(`/groups/grupos/${id}/miembros/`),
+  invitar: (grupoId, userId) => client.post(`/groups/grupos/${grupoId}/invitar/`, { user_id: userId }),
 
   getPlanes: () => client.get('/groups/planes/'),
   createPlan: (data) => client.post('/groups/planes/', data),
@@ -17,19 +17,16 @@ export const groupsApi = {
   createActividad: (data) => client.post('/groups/actividades/', data),
 
   getAsignacionesServicio: () => client.get('/groups/asignaciones-servicio/'),
-  createAsignacionServicio: (data) =>
-    client.post('/groups/asignaciones-servicio/', data),
-  confirmarPagoServicio: (id, movimientoId) =>
-    client.post(`/groups/asignaciones-servicio/${id}/confirmar_pago/`, {
-      movimiento_id: movimientoId,
-    }),
+  createAsignacionServicio: (data) => client.post('/groups/asignaciones-servicio/', data),
+  confirmarPagoServicio: (id) => client.post(`/groups/asignaciones-servicio/${id}/confirmar_pago/`),
+  cancelarAsignacionServicio: (id) => client.post(`/groups/asignaciones-servicio/${id}/cancelar/`),
+
+  getConfirmacionesServicio: () => client.get('/groups/confirmaciones-servicio/'),
+  responderConfirmacionServicio: (id, decision) => client.post(`/groups/confirmaciones-servicio/${id}/responder/`, { decision }),
 
   getSolicitudesCambio: () => client.get('/groups/solicitudes-cambio/'),
   aprobarSolicitudCambio: (id) => client.post(`/groups/solicitudes-cambio/${id}/aprobar/`),
 
   getParticipaciones: () => client.get('/groups/participaciones/'),
-  responderParticipacion: (id, acepta) =>
-    client.patch(`/groups/participaciones/${id}/`, {
-      acepta_participar: acepta,
-    }),
+  responderParticipacion: (id, acepta) => client.patch(`/groups/participaciones/${id}/`, { acepta_participar: acepta }),
 };

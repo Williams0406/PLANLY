@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -6,7 +7,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from finance.models import MovimientoFinanciero
+from finance.models import DivisionMovimiento, MovimientoFinanciero, Prestamo
 from groups.models import Grupo, MiembroGrupo, PlanGrupal
 from services.models import Entidad, Servicio
 
@@ -50,16 +51,21 @@ class PlanFlowTests(APITestCase):
             contacto_referencia="999",
         )
 
-    def test_servicio_se_asigna_en_interes_y_confirma_con_pago(self):
+    def test_servicio_se_asigna_en_interes_y_confirma_con_pago_automatico_grupal(self):
         self.client.force_authenticate(self.persona)
         start = timezone.now() + timedelta(days=1)
         end = start + timedelta(hours=8)
 
+        grupo = Grupo.objects.create(nombre="Grupo City Tour", creado_por=self.persona)
+        MiembroGrupo.objects.create(grupo=grupo, usuario=self.persona, rol="admin")
+        MiembroGrupo.objects.create(grupo=grupo, usuario=self.persona2)
+
         plan_response = self.client.post(
             reverse("planes-list"),
             {
-                "nombre": "Plan personal",
-                "tipo_plan": "individual",
+                "nombre": "Plan grupal",
+                "tipo_plan": "grupal",
+                "grupo": grupo.id,
                 "fecha_inicio": start.isoformat(),
                 "fecha_fin": end.isoformat(),
             },
@@ -92,21 +98,76 @@ class PlanFlowTests(APITestCase):
         self.assertEqual(asignacion_response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(asignacion_response.data["estado"], "interes")
 
-        movimiento = MovimientoFinanciero.objects.create(
-            usuario=self.persona,
-            tipo_movimiento="gasto",
-            descripcion="Pago City Tour",
-            monto="100.00",
-            fecha=timezone.now().date(),
-        )
-
         confirmar_response = self.client.post(
             reverse("asignaciones-servicio-confirmar-pago", args=[asignacion_response.data["id"]]),
-            {"movimiento_id": movimiento.id},
             format="json",
         )
 
         self.assertEqual(confirmar_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(confirmar_response.data["tipo_movimiento"], "gasto_grupal")
+
+        movimiento = MovimientoFinanciero.objects.get(id=confirmar_response.data["movimiento_id"])
+        self.assertEqual(movimiento.monto, Decimal("100.00"))
+        self.assertEqual(movimiento.tipo_movimiento, "gasto_grupal")
+        self.assertEqual(movimiento.grupo_id, grupo.id)
+
+        divisiones = DivisionMovimiento.objects.filter(movimiento=movimiento).order_by("usuario_id")
+        self.assertEqual(divisiones.count(), 2)
+        self.assertEqual(divisiones[0].monto_asignado + divisiones[1].monto_asignado, Decimal("100.00"))
+        montos_por_usuario = {division.usuario_id: division.monto_asignado for division in divisiones}
+        self.assertEqual(montos_por_usuario[self.persona.id], Decimal("50.00"))
+        self.assertEqual(montos_por_usuario[self.persona2.id], Decimal("50.00"))
+
+        prestamos = Prestamo.objects.filter(grupo=grupo, prestamista=self.persona)
+        self.assertEqual(prestamos.count(), 1)
+        self.assertEqual(prestamos.first().deudor_id, self.persona2.id)
+        self.assertEqual(prestamos.first().monto, montos_por_usuario[self.persona2.id])
+        self.assertEqual(prestamos.first().saldo_pendiente, montos_por_usuario[self.persona2.id])
+
+    def test_servicio_puede_cancelarse(self):
+        self.client.force_authenticate(self.persona)
+        start = timezone.now() + timedelta(days=1)
+        end = start + timedelta(hours=8)
+
+        plan_response = self.client.post(
+            reverse("planes-list"),
+            {
+                "nombre": "Plan personal",
+                "tipo_plan": "individual",
+                "fecha_inicio": start.isoformat(),
+                "fecha_fin": end.isoformat(),
+            },
+            format="json",
+        )
+        actividad_response = self.client.post(
+            reverse("actividades-list"),
+            {
+                "plan": plan_response.data["id"],
+                "titulo": "Tarde",
+                "fecha_inicio": start.isoformat(),
+                "fecha_fin": (start + timedelta(hours=3)).isoformat(),
+            },
+            format="json",
+        )
+        asignacion_response = self.client.post(
+            reverse("asignaciones-servicio-list"),
+            {
+                "actividad": actividad_response.data["id"],
+                "servicio": self.servicio.id,
+                "fecha_inicio": start.isoformat(),
+                "fecha_fin": (start + timedelta(hours=2)).isoformat(),
+            },
+            format="json",
+        )
+
+        cancelar_response = self.client.post(
+            reverse("asignaciones-servicio-cancelar", args=[asignacion_response.data["id"]]),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(cancelar_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(cancelar_response.data["estado"], "cancelado")
 
     def test_plan_grupal_requiere_aprobacion_total_para_cambios(self):
         grupo = Grupo.objects.create(nombre="Viajeros", creado_por=self.persona)

@@ -1,6 +1,15 @@
 # users/models.py
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.text import slugify
+from django.utils import timezone
+
+
+def persona_photo_upload_to(instance, filename):
+    base_name, dot, extension = filename.rpartition(".")
+    safe_base = slugify(base_name or "perfil") or "perfil"
+    safe_extension = slugify(extension) if extension else "jpg"
+    return f"perfiles/{safe_base}.{safe_extension}"
 
 
 class User(AbstractUser):
@@ -15,6 +24,28 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+
+def ensure_persona_profile(user):
+    if user.tipo_usuario != "persona":
+        return None
+
+    profile, _ = PersonaProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            "tipo_documento": "otro",
+            "numero_documento": f"AUTO-{user.id}",
+            "nombres": user.username,
+            "apellidos": "",
+            "fecha_nacimiento": timezone.datetime(2000, 1, 1).date(),
+            "ocupacion": "",
+            "descripcion": "",
+            "hobbies": "",
+            "nacionalidad": "Peruana",
+            "ciudad": "Lima",
+        },
+    )
+    return profile
 
 
 class PersonaProfile(models.Model):
@@ -60,7 +91,7 @@ class PersonaPhoto(models.Model):
         related_name="fotos"
     )
 
-    imagen = models.ImageField(upload_to="perfiles/")
+    imagen = models.ImageField(upload_to=persona_photo_upload_to)
     es_principal = models.BooleanField(default=False)
     orden = models.PositiveIntegerField(default=0)
     visible = models.BooleanField(default=True)

@@ -9,6 +9,20 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Alert from '@/components/ui/Alert';
 
+const getHorarioResumen = (servicio) => {
+  if (servicio.horarios?.length) {
+    const first = servicio.horarios[0];
+    const start = new Date(first.fecha_inicio).toLocaleString();
+    const end = new Date(first.fecha_fin).toLocaleString();
+    const suffix = servicio.horarios.length > 1 ? ` (+${servicio.horarios.length - 1} mas)` : '';
+    return `${start} - ${end}${suffix}`;
+  }
+  if (servicio.hora_inicio && servicio.hora_fin) {
+    return `${servicio.hora_inicio} - ${servicio.hora_fin}`;
+  }
+  return 'Sin horario';
+};
+
 export default function MisServiciosPage() {
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +132,7 @@ export default function MisServiciosPage() {
                         </span>
                       )}
                     </div>
+                    <p className="text-sm text-slate-500 mt-2">{getHorarioResumen(s)}</p>
                   </div>
                 </div>
 

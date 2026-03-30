@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, PersonaProfile, PersonaPhoto
+from .models import User, PersonaProfile, PersonaPhoto, ensure_persona_profile
 
 
 class UserMeSerializer(serializers.ModelSerializer):
@@ -60,4 +60,5 @@ class RegisterWebSerializer(serializers.ModelSerializer):
         user = User(**validated_data)
         user.set_password(password)
         user.save()
+        ensure_persona_profile(user)
         return user

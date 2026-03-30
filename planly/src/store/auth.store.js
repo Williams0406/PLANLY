@@ -27,7 +27,7 @@ export const useAuthStore = create((set, get) => ({
     try {
       // Obtener username desde el token
       const token = await SecureStore.getItemAsync('access_token');
-      if (!token) return;
+      if (!token) return null;
 
       // Decodificar JWT para obtener user_id
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -36,20 +36,24 @@ export const useAuthStore = create((set, get) => ({
       try {
         const res = await client.get('/users/perfil/');
         if (res.data && res.data.length > 0) {
-          set({ user: { ...res.data[0], tipo_usuario: 'persona' } });
-          return;
+          const nextUser = { ...res.data[0], tipo_usuario: 'persona' };
+          set({ user: nextUser });
+          return nextUser;
         }
       } catch (e) {}
 
       // Si no tiene perfil persona, puede ser entidad
       // Guardamos info mínima del token
-      set({
+      const nextUser = {
         user: {
           id: payload.user_id,
           tipo_usuario: payload.tipo_usuario || 'persona',
         },
-      });
+      };
+      set(nextUser);
+      return nextUser.user;
     } catch (e) {}
+    return null;
   },
 
   logout: async () => {

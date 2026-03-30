@@ -6,11 +6,15 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 const client = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 // Request: adjunta access token
 client.interceptors.request.use(async (config) => {
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+    delete config.headers['content-type'];
+  }
+
   const token = await SecureStore.getItemAsync('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

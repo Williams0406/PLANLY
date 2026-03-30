@@ -1,5 +1,5 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 from services.models import Servicio
 
 
@@ -14,11 +14,7 @@ class Grupo(models.Model):
 
 
 class MiembroGrupo(models.Model):
-    ROL_CHOICES = (
-        ("admin", "Admin"),
-        ("miembro", "Miembro"),
-    )
-
+    ROL_CHOICES = (("admin", "Admin"), ("miembro", "Miembro"))
     grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE, related_name="miembros")
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     rol = models.CharField(max_length=20, choices=ROL_CHOICES, default="miembro")
@@ -32,17 +28,8 @@ class MiembroGrupo(models.Model):
 
 
 class PlanGrupal(models.Model):
-    TIPO_CHOICES = (
-        ("individual", "Individual"),
-        ("grupal", "Grupal"),
-    )
-    ESTADO_CHOICES = (
-        ("borrador", "Borrador"),
-        ("propuesto", "Propuesto"),
-        ("confirmado", "Confirmado"),
-        ("cancelado", "Cancelado"),
-    )
-
+    TIPO_CHOICES = (("individual", "Individual"), ("grupal", "Grupal"))
+    ESTADO_CHOICES = (("borrador", "Borrador"), ("propuesto", "Propuesto"), ("confirmado", "Confirmado"), ("cancelado", "Cancelado"))
     nombre = models.CharField(max_length=255, default="Plan")
     descripcion = models.TextField(blank=True)
     tipo_plan = models.CharField(max_length=20, choices=TIPO_CHOICES, default="grupal")
@@ -74,25 +61,37 @@ class ActividadPlan(models.Model):
 
 class ActividadServicio(models.Model):
     ESTADO_CHOICES = (
+        ("pendiente_confirmacion", "Pendiente confirmación"),
         ("interes", "Interés"),
         ("confirmado", "Confirmado"),
         ("cancelado", "Cancelado"),
     )
-
     actividad = models.ForeignKey(ActividadPlan, on_delete=models.CASCADE, related_name="servicios_asignados")
     servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE)
     usuario_asignador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     fecha_inicio = models.DateTimeField()
     fecha_fin = models.DateTimeField()
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="interes")
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default="interes")
     movimiento_pago = models.ForeignKey("finance.MovimientoFinanciero", on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ConfirmacionServicioIntegrante(models.Model):
+    ESTADO_CHOICES = (("pendiente", "Pendiente"), ("aceptado", "Aceptado"), ("rechazado", "Rechazado"))
+    asignacion = models.ForeignKey(ActividadServicio, on_delete=models.CASCADE, related_name="confirmaciones")
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default="pendiente")
+    mensaje = models.TextField(default="Se requiere tu confirmación para agregar este servicio a una actividad.")
+    fecha_respuesta = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("asignacion", "usuario")
 
 
 class ParticipacionPlan(models.Model):
     plan = models.ForeignKey(PlanGrupal, on_delete=models.CASCADE, related_name="participaciones")
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    acepta_participar = models.BooleanField(null=True)  # None = pendiente
+    acepta_participar = models.BooleanField(null=True)
     fecha_respuesta = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -100,12 +99,7 @@ class ParticipacionPlan(models.Model):
 
 
 class SolicitudCambioPlan(models.Model):
-    ESTADO_CHOICES = (
-        ("pendiente", "Pendiente"),
-        ("aprobado", "Aprobado"),
-        ("rechazado", "Rechazado"),
-    )
-
+    ESTADO_CHOICES = (("pendiente", "Pendiente"), ("aprobado", "Aprobado"), ("rechazado", "Rechazado"))
     plan = models.ForeignKey(PlanGrupal, on_delete=models.CASCADE, related_name="solicitudes_cambio")
     solicitado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     cambios = models.JSONField(default=dict)

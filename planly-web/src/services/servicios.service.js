@@ -1,7 +1,6 @@
 import apiClient from '@/lib/axios';
 
 export const serviciosService = {
-  // Públicos — sin auth
   async getPublicos(params = {}) {
     const res = await apiClient.get('/services/web/servicios/', { params });
     return res.data;
@@ -12,7 +11,11 @@ export const serviciosService = {
     return res.data;
   },
 
-  // Privados — requieren auth de entidad
+  async getEntidadPublica(id) {
+    const res = await apiClient.get(`/services/catalogo/entidades/${id}/`);
+    return res.data;
+  },
+
   async getMisServicios() {
     const res = await apiClient.get('/services/mis-servicios/');
     return res.data;

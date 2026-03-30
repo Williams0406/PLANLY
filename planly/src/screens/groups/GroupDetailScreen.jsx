@@ -20,7 +20,9 @@ import Card from '../../components/ui/Card';
 import Loader from '../../components/ui/Loader';
 import EmptyState from '../../components/ui/EmptyState';
 import Button from '../../components/ui/Button';
+import DateTimeField from '../../components/ui/DateTimeField';
 import { colors, spacing, radius } from '../../theme';
+import { formatDateTimeDisplay, formatDateTimeInput, toISOFromInput } from '../../utils/datetime';
 
 const ESTADO_COLORS = {
   borrador: { bg: '#E2E8F0', text: '#334155' },
@@ -30,14 +32,8 @@ const ESTADO_COLORS = {
   interes: { bg: '#E0F2FE', text: '#075985' },
 };
 
-const toInputDateTime = (value) => {
-  if (!value) return '';
-  const d = new Date(value);
-  const pad = (n) => `${n}`.padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-const toISOorNull = (value) => (value ? new Date(value).toISOString() : null);
+const toInputDateTime = (value) => formatDateTimeInput(value);
+const toISOorNull = (value) => toISOFromInput(value);
 
 export default function GroupDetailScreen({ navigation, route }) {
   const { grupo } = route.params;
@@ -146,6 +142,12 @@ export default function GroupDetailScreen({ navigation, route }) {
       Alert.alert('Campos requeridos', 'Completa nombre, inicio y fin.');
       return;
     }
+    const fechaInicio = toISOorNull(planDraft.fecha_inicio);
+    const fechaFin = toISOorNull(planDraft.fecha_fin);
+    if (!fechaInicio || !fechaFin) {
+      Alert.alert('Formato invalido', 'Usa DD/MM/AAAA HH:mm. Ejemplo: 21/03/2026 10:00');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -153,8 +155,8 @@ export default function GroupDetailScreen({ navigation, route }) {
         ...planDraft,
         grupo: grupo.id,
         tipo_plan: 'grupal',
-        fecha_inicio: toISOorNull(planDraft.fecha_inicio),
-        fecha_fin: toISOorNull(planDraft.fecha_fin),
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
       });
       setShowPlanModal(false);
       setPlanDraft({ nombre: '', descripcion: '', fecha_inicio: '', fecha_fin: '' });
@@ -173,13 +175,19 @@ export default function GroupDetailScreen({ navigation, route }) {
       Alert.alert('Campos requeridos', 'Completa plan, título, inicio y fin.');
       return;
     }
+    const fechaInicio = toISOorNull(actividadDraft.fecha_inicio);
+    const fechaFin = toISOorNull(actividadDraft.fecha_fin);
+    if (!fechaInicio || !fechaFin) {
+      Alert.alert('Formato invalido', 'Usa DD/MM/AAAA HH:mm. Ejemplo: 21/03/2026 10:00');
+      return;
+    }
 
     setSubmitting(true);
     try {
       await groupsApi.createActividad({
         ...actividadDraft,
-        fecha_inicio: toISOorNull(actividadDraft.fecha_inicio),
-        fecha_fin: toISOorNull(actividadDraft.fecha_fin),
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
       });
       setShowActividadModal(false);
       setActividadDraft({ plan: selectedPlanId, titulo: '', descripcion: '', fecha_inicio: '', fecha_fin: '' });
@@ -197,13 +205,19 @@ export default function GroupDetailScreen({ navigation, route }) {
       Alert.alert('Campos requeridos', 'Completa actividad, servicio, inicio y fin.');
       return;
     }
+    const fechaInicio = toISOorNull(asignacionDraft.fecha_inicio);
+    const fechaFin = toISOorNull(asignacionDraft.fecha_fin);
+    if (!fechaInicio || !fechaFin) {
+      Alert.alert('Formato invalido', 'Usa DD/MM/AAAA HH:mm. Ejemplo: 21/03/2026 10:00');
+      return;
+    }
 
     setSubmitting(true);
     try {
       await groupsApi.createAsignacionServicio({
         ...asignacionDraft,
-        fecha_inicio: toISOorNull(asignacionDraft.fecha_inicio),
-        fecha_fin: toISOorNull(asignacionDraft.fecha_fin),
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
       });
       setShowAsignacionModal(false);
       setAsignacionDraft({ actividad: null, servicio: null, fecha_inicio: '', fecha_fin: '' });
@@ -316,8 +330,8 @@ export default function GroupDetailScreen({ navigation, route }) {
                   <StatusPill status={plan.estado} />
                 </View>
                 <Text style={styles.planMeta}>Líder: {plan.lider || plan.creado_por} · Tipo: {plan.tipo_plan}</Text>
-                <Text style={styles.planMeta}>Inicio: {new Date(plan.fecha_inicio).toLocaleString()}</Text>
-                <Text style={styles.planMeta}>Fin: {new Date(plan.fecha_fin).toLocaleString()}</Text>
+                <Text style={styles.planMeta}>Inicio: {formatDateTimeDisplay(plan.fecha_inicio)}</Text>
+                <Text style={styles.planMeta}>Fin: {formatDateTimeDisplay(plan.fecha_fin)}</Text>
               </TouchableOpacity>
             ))
           )}
@@ -339,7 +353,7 @@ export default function GroupDetailScreen({ navigation, route }) {
                 <Card key={actividad.actividad_id || actividad.id} style={styles.activityCard}>
                   <Text style={styles.activityTitle}>{actividad.titulo}</Text>
                   <Text style={styles.activityTime}>
-                    {new Date(actividad.fecha_inicio).toLocaleString()} → {new Date(actividad.fecha_fin).toLocaleString()}
+                    {formatDateTimeDisplay(actividad.fecha_inicio)} -> {formatDateTimeDisplay(actividad.fecha_fin)}
                   </Text>
 
                   {(actividad.servicios || []).length === 0 ? (
@@ -351,7 +365,7 @@ export default function GroupDetailScreen({ navigation, route }) {
                         <View key={s.id} style={styles.serviceItem}>
                           <View style={{ flex: 1 }}>
                             <Text style={styles.serviceName}>{servicio?.nombre || s.servicio_nombre}</Text>
-                            <Text style={styles.serviceTime}>{new Date(s.fecha_inicio).toLocaleString()} - {new Date(s.fecha_fin).toLocaleString()}</Text>
+                            <Text style={styles.serviceTime}>{formatDateTimeDisplay(s.fecha_inicio)} - {formatDateTimeDisplay(s.fecha_fin)}</Text>
                           </View>
                           <StatusPill status={s.estado} />
                           {s.estado === 'interes' ? (
@@ -459,8 +473,8 @@ function PlanModal({ visible, onClose, draft, onChange, onSubmit, loading }) {
     <BaseModal visible={visible} onClose={onClose} title="Crear plan grupal">
       <Field label="Nombre" value={draft.nombre} onChangeText={(v) => onChange((p) => ({ ...p, nombre: v }))} placeholder="Viaje de finde" />
       <Field label="Descripción" value={draft.descripcion} onChangeText={(v) => onChange((p) => ({ ...p, descripcion: v }))} placeholder="Objetivo del plan" />
-      <Field label="Inicio (YYYY-MM-DDTHH:mm)" value={draft.fecha_inicio} onChangeText={(v) => onChange((p) => ({ ...p, fecha_inicio: v }))} placeholder="2026-03-20T08:00" />
-      <Field label="Fin (YYYY-MM-DDTHH:mm)" value={draft.fecha_fin} onChangeText={(v) => onChange((p) => ({ ...p, fecha_fin: v }))} placeholder="2026-03-20T22:00" />
+      <DateTimeField label="Inicio" value={draft.fecha_inicio} onChangeText={(v) => onChange((p) => ({ ...p, fecha_inicio: v }))} placeholder="21/03/2026 08:00" />
+      <DateTimeField label="Fin" value={draft.fecha_fin} onChangeText={(v) => onChange((p) => ({ ...p, fecha_fin: v }))} placeholder="21/03/2026 22:00" />
       <Button title="Guardar plan" onPress={onSubmit} loading={loading} style={{ marginTop: spacing.sm }} />
     </BaseModal>
   );
@@ -479,8 +493,8 @@ function ActividadModal({ visible, onClose, draft, onChange, planes, onSubmit, l
       </ScrollView>
       <Field label="Título" value={draft.titulo} onChangeText={(v) => onChange((p) => ({ ...p, titulo: v }))} placeholder="Desayuno" />
       <Field label="Descripción" value={draft.descripcion} onChangeText={(v) => onChange((p) => ({ ...p, descripcion: v }))} placeholder="Detalle" />
-      <Field label="Inicio" value={draft.fecha_inicio} onChangeText={(v) => onChange((p) => ({ ...p, fecha_inicio: v }))} placeholder="2026-03-20T09:00" />
-      <Field label="Fin" value={draft.fecha_fin} onChangeText={(v) => onChange((p) => ({ ...p, fecha_fin: v }))} placeholder="2026-03-20T11:00" />
+      <DateTimeField label="Inicio" value={draft.fecha_inicio} onChangeText={(v) => onChange((p) => ({ ...p, fecha_inicio: v }))} placeholder="21/03/2026 09:00" />
+      <DateTimeField label="Fin" value={draft.fecha_fin} onChangeText={(v) => onChange((p) => ({ ...p, fecha_fin: v }))} placeholder="21/03/2026 11:00" />
       <Button title="Guardar actividad" onPress={onSubmit} loading={loading} style={{ marginTop: spacing.sm }} />
     </BaseModal>
   );
@@ -507,8 +521,8 @@ function AsignacionModal({ visible, onClose, draft, onChange, actividades, servi
         ))}
       </ScrollView>
 
-      <Field label="Inicio" value={draft.fecha_inicio} onChangeText={(v) => onChange((p) => ({ ...p, fecha_inicio: v }))} placeholder="2026-03-20T10:00" />
-      <Field label="Fin" value={draft.fecha_fin} onChangeText={(v) => onChange((p) => ({ ...p, fecha_fin: v }))} placeholder="2026-03-20T12:00" />
+      <DateTimeField label="Inicio" value={draft.fecha_inicio} onChangeText={(v) => onChange((p) => ({ ...p, fecha_inicio: v }))} placeholder="21/03/2026 10:00" />
+      <DateTimeField label="Fin" value={draft.fecha_fin} onChangeText={(v) => onChange((p) => ({ ...p, fecha_fin: v }))} placeholder="21/03/2026 12:00" />
 
       <Button title="Asignar en interés" onPress={onSubmit} loading={loading} style={{ marginTop: spacing.sm }} />
     </BaseModal>

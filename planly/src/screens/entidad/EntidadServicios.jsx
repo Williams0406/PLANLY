@@ -10,8 +10,22 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import Loader from '../../components/ui/Loader';
 import { colors, spacing, radius } from '../../theme';
+import { formatDateTimeDisplay } from '../../utils/datetime';
 
 const PURPLE = '#8B5CF6';
+const formatScheduleSummary = (servicio) => {
+  if (servicio.horarios?.length) {
+    const first = servicio.horarios[0];
+    const start = formatDateTimeDisplay(first.fecha_inicio);
+    const end = formatDateTimeDisplay(first.fecha_fin);
+    const suffix = servicio.horarios.length > 1 ? ` (+${servicio.horarios.length - 1} mas)` : '';
+    return `${start} - ${end}${suffix}`;
+  }
+  if (servicio.hora_inicio && servicio.hora_fin) {
+    return `${servicio.hora_inicio} - ${servicio.hora_fin}`;
+  }
+  return 'Sin horarios definidos';
+};
 
 export default function EntidadServicios({ navigation }) {
   const { servicios, isLoading, fetchServicios, deleteServicio, togglePromocion } =
@@ -96,7 +110,7 @@ export default function EntidadServicios({ navigation }) {
       <View style={styles.horarioRow}>
         <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
         <Text style={styles.horarioText}>
-          {item.hora_inicio} — {item.hora_fin}
+          {formatScheduleSummary(item)}
         </Text>
       </View>
 

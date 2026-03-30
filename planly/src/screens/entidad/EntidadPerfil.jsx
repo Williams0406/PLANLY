@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, StatusBar,
+  TouchableOpacity, StatusBar, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEntidadStore } from '../../store/entidad.store';
@@ -92,6 +92,17 @@ export default function EntidadPerfil() {
           ))}
         </Card>
 
+        {!!perfil?.imagenes_promocionales?.length && (
+          <Card>
+            <Text style={styles.infoHeaderText}>Galería promocional</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 12 }}>
+              {perfil.imagenes_promocionales.map((uri, idx) => (
+                <Image key={`${uri}-${idx}`} source={{ uri }} style={styles.promoImage} />
+              ))}
+            </ScrollView>
+          </Card>
+        )}
+
         {/* Logout */}
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
           <Ionicons name="log-out-outline" size={20} color={colors.error} />
@@ -160,4 +171,5 @@ const styles = StyleSheet.create({
   },
   logoutText: { fontSize: 15, fontWeight: '600', color: colors.error },
   version: { textAlign: 'center', fontSize: 12, color: colors.textSecondary },
+  promoImage: { width: 160, height: 100, borderRadius: radius.md },
 });

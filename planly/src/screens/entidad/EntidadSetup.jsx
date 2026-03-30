@@ -23,6 +23,7 @@ export default function EntidadSetup({ pendingApproval = false }) {
     ruc: '',
     direccion: '',
     contacto_referencia: '',
+    imagenes_promocionales: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -45,7 +46,7 @@ export default function EntidadSetup({ pendingApproval = false }) {
     if (!validate()) return;
     setLoading(true);
     try {
-      await createPerfil(form);
+      await createPerfil({ ...form, imagenes_promocionales: form.imagenes_promocionales.split(',').map((item) => item.trim()).filter(Boolean) });
       await fetchPerfil();
     } catch (e) {
       const msg = e.response?.data
@@ -191,6 +192,14 @@ export default function EntidadSetup({ pendingApproval = false }) {
             leftIcon="person-outline"
             error={errors.contacto_referencia}
             autoCapitalize="words"
+          />
+
+          <Input
+            label="Imágenes promocionales"
+            placeholder="https://... , https://..."
+            value={form.imagenes_promocionales}
+            onChangeText={(v) => update('imagenes_promocionales', v)}
+            leftIcon="images-outline"
           />
 
           <View style={styles.infoBox}>

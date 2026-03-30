@@ -1,316 +1,333 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
   FlatList,
-  TouchableOpacity,
-  TextInput,
-  StatusBar,
+  Image,
   RefreshControl,
-  Modal,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { servicesApi } from '../../api/services.api';
-import Card from '../../components/ui/Card';
-import Loader from '../../components/ui/Loader';
+import { colors, radius, spacing } from '../../theme';
 import EmptyState from '../../components/ui/EmptyState';
-import Button from '../../components/ui/Button';
-import { colors, spacing, radius } from '../../theme';
+import Loader from '../../components/ui/Loader';
 
-const normalizeList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.results)) return payload.results;
-  return [];
-};
+const normalizeList = (payload) => (Array.isArray(payload) ? payload : Array.isArray(payload?.results) ? payload.results : []);
+const hour = (value) => String(value || '').slice(0, 5);
 
-const toHour = (v) => (v ? String(v).slice(0, 5) : '--:--');
-
-export default function CatalogScreen() {
+export default function CatalogScreen({ navigation, route }) {
+  const selectionMode = route.params?.selectionMode;
+  const plan = route.params?.plan;
+  const activity = route.params?.activity;
   const [servicios, setServicios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [loadError, setLoadError] = useState('');
-
-  const [selectedServicio, setSelectedServicio] = useState(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [showEmpresaInfo, setShowEmpresaInfo] = useState(false);
 
   const load = async (query = '') => {
-    try {
-      setLoadError('');
-      const params = query ? { search: query } : {};
-      const res = await servicesApi.getCatalogo(params);
-      setServicios(normalizeList(res.data));
-    } catch (e) {
-      setServicios([]);
-      const msg = e?.response?.data?.detail || 'No se pudo cargar el catálogo de servicios';
-      setLoadError(msg);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    const res = await servicesApi.getCatalogo(query ? { search: query } : {});
+    setServicios(normalizeList(res.data));
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  const handleSearch = (text) => {
-    setSearch(text);
-    if (text.length === 0 || text.length >= 3) load(text);
-  };
+  const categories = useMemo(
+    () => [...new Set(servicios.map((item) => item.categoria || 'General'))],
+    [servicios]
+  );
 
-  const openServiceDetail = async (item) => {
-    setShowDetailModal(true);
-    setLoadingDetail(true);
-    setShowEmpresaInfo(false);
-    try {
-      const res = await servicesApi.getServicio(item.id);
-      setSelectedServicio(res.data);
-    } catch (e) {
-      setSelectedServicio(item);
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
+  const entidadesDestacadas = useMemo(() => {
+    const map = new Map();
+    servicios.forEach((item) => {
+      if (!map.has(item.entidad)) map.set(item.entidad, item);
+    });
+    return [...map.values()];
+  }, [servicios]);
 
-  const renderServicio = ({ item }) => (
-    <TouchableOpacity activeOpacity={0.85} onPress={() => openServiceDetail(item)}>
-      <Card style={styles.servicioCard}>
-        <View style={styles.servicioHeader}>
-          <View style={styles.servicioIcon}>
-            <Ionicons name="star-outline" size={22} color={colors.primary} />
-          </View>
-          <View style={styles.servicioInfo}>
-            <Text style={styles.servicioNombre}>{item.nombre}</Text>
-            <Text style={styles.servicioEntidad}>{item.entidad_nombre}</Text>
-          </View>
-          <View style={styles.precioBadge}>
-            <Text style={styles.precioText}>S/ {item.precio_actual}</Text>
-          </View>
-        </View>
-        {item.descripcion ? (
-          <Text style={styles.servicioDesc} numberOfLines={2}>
-            {item.descripcion}
-          </Text>
-        ) : null}
-        <View style={styles.servicioFooter}>
-          <View style={styles.footerItem}>
-            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.footerText}>{item.lugar}</Text>
-          </View>
-          <View style={styles.footerItem}>
-            <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.footerText}>
-              {toHour(item.hora_inicio)} - {toHour(item.hora_fin)}
-            </Text>
-          </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
+  const summary = useMemo(
+    () => [
+      { label: 'Servicios', value: servicios.length, icon: 'briefcase-outline' },
+      { label: 'Entidades', value: entidadesDestacadas.length, icon: 'storefront-outline' },
+      { label: 'Categorías', value: categories.length, icon: 'grid-outline' },
+    ],
+    [categories.length, entidadesDestacadas.length, servicios.length]
   );
 
   if (loading) return <Loader />;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(search); }} />}
+      showsVerticalScrollIndicator={false}
+    >
+      <LinearGradient colors={['#0F172A', '#082F49', '#155E75']} style={styles.hero}>
+        <View style={styles.heroBadge}>
+          <Ionicons name="compass-outline" size={16} color="#67E8F9" />
+          <Text style={styles.heroBadgeText}>{selectionMode ? 'Selección guiada' : 'Catálogo curado'}</Text>
+        </View>
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Explorar</Text>
-        <Text style={styles.headerSubtitle}>Descubre experiencias</Text>
+        <Text style={styles.title}>{selectionMode ? 'Elige el mejor servicio' : 'Descubre servicios con mejor contexto'}</Text>
+        <Text style={styles.subtitle}>
+          {selectionMode ? `Plan ${plan?.nombre} · ${activity?.titulo}` : 'Explora entidades, compara categorías y encuentra opciones con una vista más clara y visual.'}
+        </Text>
+
+        <View style={styles.summaryRow}>
+          {summary.map((item) => (
+            <View key={item.label} style={styles.summaryCard}>
+              <Ionicons name={item.icon} size={16} color={colors.primary} />
+              <Text style={styles.summaryValue}>{item.value}</Text>
+              <Text style={styles.summaryLabel}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+      </LinearGradient>
+
+      <View style={styles.searchWrap}>
+        <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+        <TextInput
+          value={search}
+          onChangeText={(text) => {
+            setSearch(text);
+            if (text.length === 0 || text.length > 2) load(text);
+          }}
+          style={styles.searchInput}
+          placeholder="Buscar por entidad, servicio o categoría"
+          placeholderTextColor={colors.textSecondary}
+        />
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar actividades, lugares..."
-          placeholderTextColor={colors.textSecondary}
-          value={search}
-          onChangeText={handleSearch}
-        />
-        {search.length > 0 && (
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Entidades destacadas</Text>
+        <Text style={styles.sectionHint}>Toca una entidad para ver su perfil, imágenes y servicios.</Text>
+      </View>
+
+      <FlatList
+        horizontal
+        data={entidadesDestacadas}
+        keyExtractor={(item) => `entity-${item.entidad}`}
+        contentContainerStyle={styles.horizontalList}
+        showsHorizontalScrollIndicator={false}
+        renderItem={({ item }) => (
           <TouchableOpacity
-            onPress={() => {
-              setSearch('');
-              load();
-            }}
+            activeOpacity={0.92}
+            onPress={() => navigation.navigate('EntityDetail', { entityId: item.entidad, selectionMode, plan, activity })}
           >
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+            <View style={styles.entityCard}>
+              {item.entidad_imagen_principal ? (
+                <Image source={{ uri: item.entidad_imagen_principal }} style={styles.entityImage} />
+              ) : (
+                <View style={[styles.entityImage, styles.entityImageFallback]}>
+                  <Ionicons name="storefront-outline" size={28} color={colors.primary} />
+                </View>
+              )}
+              <View style={styles.entityOverlay}>
+                <Text style={styles.entityName}>{item.entidad_nombre}</Text>
+                <Text style={styles.entityMeta} numberOfLines={1}>{item.entidad_direccion || 'Sin dirección registrada'}</Text>
+                <View style={styles.entityStats}>
+                  <View style={styles.entityStat}>
+                    <Ionicons name="star" size={12} color="#F59E0B" />
+                    <Text style={styles.entityStatText}>{item.promedio_resenas || 0}</Text>
+                  </View>
+                  <View style={styles.entityStat}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={12} color="#0EA5E9" />
+                    <Text style={styles.entityStatText}>{item.total_resenas || 0} reseñas</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </TouchableOpacity>
         )}
-      </View>
+      />
 
-      {servicios.length === 0 ? (
-        <EmptyState
-          emoji="🔍"
-          title={loadError ? 'No se pudo cargar servicios' : 'Sin resultados'}
-          subtitle={
-            loadError
-              ? `${loadError}. Verifica también que existan servicios activos con entidades aprobadas.`
-              : 'No encontramos servicios disponibles en este momento'
-          }
-        />
-      ) : (
-        <FlatList
-          data={servicios}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderServicio}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                load(search);
-              }}
-              colors={[colors.primary]}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-
-      <Modal visible={showDetailModal} transparent animationType="slide" onRequestClose={() => setShowDetailModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Detalle del servicio</Text>
-              <TouchableOpacity onPress={() => setShowDetailModal(false)}>
-                <Ionicons name="close" size={20} color={colors.text} />
-              </TouchableOpacity>
+      {categories.map((category) => {
+        const items = servicios.filter((item) => (item.categoria || 'General') === category);
+        return (
+          <View key={category} style={styles.categoryBlock}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{category}</Text>
+              <Text style={styles.sectionHint}>Desliza para comparar opciones de esta categoría.</Text>
             </View>
 
-            {loadingDetail ? (
-              <Loader />
-            ) : !selectedServicio ? (
-              <EmptyState emoji="⚠️" title="Sin información" subtitle="No se pudo cargar el detalle" />
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.detailName}>{selectedServicio.nombre}</Text>
-                <Text style={styles.detailPrice}>S/ {selectedServicio.precio_actual}</Text>
-                {!!selectedServicio.descripcion && (
-                  <Text style={styles.detailDesc}>{selectedServicio.descripcion}</Text>
-                )}
-
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoTitle}>Disponibilidad</Text>
-                  <Text style={styles.infoLine}>
-                    Horario: {toHour(selectedServicio.hora_inicio)} - {toHour(selectedServicio.hora_fin)}
-                  </Text>
-                  <Text style={styles.infoLine}>Lugar: {selectedServicio.lugar || 'No especificado'}</Text>
-                  <Text style={styles.infoLine}>Capacidad: {selectedServicio.capacidad_maxima || '-'} personas</Text>
-                </View>
-
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoTitle}>Empresa</Text>
-                  <Text style={styles.infoLine}>{selectedServicio.entidad_nombre || 'Sin empresa'}</Text>
-                  <Button
-                    title={showEmpresaInfo ? 'Ocultar info de empresa' : 'Ver más información de la empresa'}
-                    variant="outline"
-                    onPress={() => setShowEmpresaInfo((v) => !v)}
-                    style={styles.companyBtn}
-                  />
-
-                  {showEmpresaInfo && (
-                    <View style={styles.companyDetails}>
-                      <Text style={styles.infoLine}>
-                        Dirección: {selectedServicio.entidad_direccion || 'No disponible'}
-                      </Text>
-                      <Text style={styles.infoLine}>
-                        Contacto: {selectedServicio.entidad_contacto_referencia || selectedServicio.entidad_contacto || 'No disponible'}
-                      </Text>
+            <FlatList
+              horizontal
+              data={items}
+              keyExtractor={(item) => item.id.toString()}
+              contentContainerStyle={styles.horizontalList}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  activeOpacity={0.92}
+                  onPress={() => navigation.navigate('ServiceDetail', { serviceId: item.id, plan, activity, selectionMode })}
+                >
+                  <View style={styles.serviceCard}>
+                    {item.imagen_principal ? (
+                      <Image source={{ uri: item.imagen_principal }} style={styles.serviceImage} />
+                    ) : (
+                      <View style={[styles.serviceImage, styles.serviceImageFallback]}>
+                        <Ionicons name="image-outline" size={26} color={colors.primary} />
+                      </View>
+                    )}
+                    <View style={styles.serviceBody}>
+                      <Text style={styles.serviceName} numberOfLines={1}>{item.nombre}</Text>
+                      <Text style={styles.serviceEntity} numberOfLines={1}>{item.entidad_nombre}</Text>
+                      <Text style={styles.serviceDesc} numberOfLines={2}>{item.descripcion}</Text>
+                      <View style={styles.serviceChips}>
+                        <View style={styles.chip}>
+                          <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+                          <Text style={styles.chipText}>{item.lugar}</Text>
+                        </View>
+                        <View style={styles.chip}>
+                          <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
+                          <Text style={styles.chipText}>{hour(item.hora_inicio)}-{hour(item.hora_fin)}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.serviceFooter}>
+                        <Text style={styles.price}>S/ {item.precio_actual}</Text>
+                        <Text style={styles.score}>★ {item.promedio_resenas || 0}</Text>
+                      </View>
                     </View>
-                  )}
-                </View>
-              </ScrollView>
-            )}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
           </View>
-        </View>
-      </Modal>
-    </View>
+        );
+      })}
+
+      {servicios.length === 0 ? (
+        <EmptyState emoji="🔎" title="Sin resultados" subtitle="No encontramos servicios o entidades para mostrar." />
+      ) : null}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    paddingHorizontal: spacing.lg,
+  container: { flex: 1, backgroundColor: '#F4F8FB' },
+  hero: {
     paddingTop: 56,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: colors.text },
-  headerSubtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  searchContainer: {
+  heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    margin: spacing.lg,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    minHeight: 46,
-  },
-  searchIcon: { marginRight: spacing.sm },
-  searchInput: { flex: 1, fontSize: 14, color: colors.text },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
-  servicioCard: { gap: spacing.sm },
-  servicioHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  servicioIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primary + '15',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  servicioInfo: { flex: 1 },
-  servicioNombre: { fontSize: 15, fontWeight: '600', color: colors.text },
-  servicioEntidad: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
-  precioBadge: {
-    backgroundColor: colors.accent + '20',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    gap: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radius.full,
+    backgroundColor: 'rgba(6,182,212,0.22)',
   },
-  precioText: { fontSize: 13, fontWeight: '700', color: '#3A5C00' },
-  servicioDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-  servicioFooter: { flexDirection: 'row', gap: spacing.md },
-  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  footerText: { fontSize: 12, color: colors.textSecondary },
-
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalCard: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.lg,
-    maxHeight: '90%',
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  detailName: { fontSize: 20, fontWeight: '800', color: colors.text },
-  detailPrice: { marginTop: 4, fontSize: 16, fontWeight: '700', color: colors.primary },
-  detailDesc: { marginTop: spacing.sm, fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
-  infoBox: {
-    marginTop: spacing.md,
+  heroBadgeText: { color: '#ECFEFF', fontSize: 12, fontWeight: '700' },
+  title: { fontSize: 30, fontWeight: '800', color: '#FFFFFF', lineHeight: 38, marginTop: spacing.md },
+  subtitle: { color: 'rgba(255,255,255,0.74)', marginTop: 8, lineHeight: 22, maxWidth: '94%' },
+  summaryRow: { flexDirection: 'row', gap: 10, marginTop: spacing.lg },
+  summaryCard: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.xs,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    gap: 6,
   },
-  infoTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
-  infoLine: { fontSize: 13, color: colors.textSecondary },
-  companyBtn: { marginTop: spacing.sm },
-  companyDetails: { marginTop: spacing.sm, gap: 4 },
+  summaryValue: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
+  summaryLabel: { color: 'rgba(255,255,255,0.68)', fontSize: 11.5, fontWeight: '600' },
+  searchWrap: {
+    margin: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#DCE7F0',
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 50,
+  },
+  searchInput: { flex: 1, paddingVertical: 14, marginLeft: spacing.sm, color: colors.text },
+  sectionHeader: { marginHorizontal: spacing.lg, marginBottom: spacing.sm },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
+  sectionHint: { marginTop: 4, color: colors.textSecondary, fontSize: 12.5 },
+  horizontalList: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm },
+  entityCard: {
+    width: 292,
+    height: 188,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#EAF7FC',
+    borderWidth: 1,
+    borderColor: '#DCECF7',
+  },
+  entityImage: { width: '100%', height: '100%' },
+  entityImageFallback: { alignItems: 'center', justifyContent: 'center' },
+  entityOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: spacing.md,
+    backgroundColor: 'rgba(15,23,42,0.56)',
+  },
+  entityName: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
+  entityMeta: { marginTop: 4, color: 'rgba(255,255,255,0.82)', fontSize: 12.5 },
+  entityStats: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  entityStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  entityStatText: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' },
+  categoryBlock: { marginBottom: spacing.md },
+  serviceCard: {
+    width: 282,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E4EDF5',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  serviceImage: { width: '100%', height: 170 },
+  serviceImageFallback: { backgroundColor: '#F0F9FF', alignItems: 'center', justifyContent: 'center' },
+  serviceBody: { padding: spacing.md },
+  serviceName: { fontWeight: '800', color: colors.text, fontSize: 16 },
+  serviceEntity: { color: colors.primary, fontWeight: '700', fontSize: 12.5, marginTop: 4 },
+  serviceDesc: { marginTop: 8, color: colors.textSecondary, lineHeight: 18, minHeight: 36 },
+  serviceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    backgroundColor: '#F8FAFC',
+  },
+  chipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
+  serviceFooter: { marginTop: spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  price: { color: colors.primary, fontWeight: '800', fontSize: 18 },
+  score: { color: '#F59E0B', fontWeight: '800' },
 });
