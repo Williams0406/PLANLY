@@ -1,0 +1,25 @@
+# Proyectos hermanos - NO pertenecen al build movil
+main
+planly-web
+venv
+# Git
+.git
+# Carpetas de build/cache en cualquier nivel
+**/node_modules
+**/.expo
+**/.next
+**/dist
+**/build
+**/coverage
+**/__pycache__
+# Archivos pesados innecesarios
+**/*.log
+**/*.map
+**/*.pyc
+**/*.pyd
+# Variables de entorno
+.env.local
+.env*.local
+# Sistema
+.DS_Store
+Thumbs.db

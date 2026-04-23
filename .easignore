@@ -1,54 +1,30 @@
-# Carpetas que no son el app móvil
 main/
 planly-web/
-
-# Dependencias
-node_modules
-planly/node_modules
-
-# Expo
-.expo
-web-build
-dist
-
-# Git
-.git
-
-# Android builds
+venv/
+.git/
+node_modules/
+.expo/
+web-build/
+dist/
 android/.gradle
 android/build
 android/.idea
 ios/build
 ios/Pods
-
-# Logs y temporales
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Archivos comprimidos y builds
-*.pdf
-*.zip
-*.rar
 *.apk
 *.aab
-
-# Editores
-.vscode
-.idea
-
-# Tests y coverage
-coverage
-__tests__
+*.zip
+*.rar
+*.pdf
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+coverage/
+__tests__/
 *.test.js
 *.spec.js
-
-# Variables de entorno
 .env.local
 .env.development
 .env.test
-
-# Otros
-.DS_Store
-Thumbs.db
