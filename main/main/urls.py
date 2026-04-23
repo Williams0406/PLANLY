@@ -21,4 +21,7 @@ urlpatterns = [
     path("api/groups/", include("groups.urls")),
     path("api/services/", include("services.urls")),
     path("api/finance/", include("finance.urls")),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+if settings.SERVE_LOCAL_MEDIA:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
