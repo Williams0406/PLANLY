@@ -39,7 +39,7 @@ __tests__
 *.test.js
 *.spec.js
 
-# Variables de entorno (si tienes archivos locales)
+# Variables de entorno
 .env.local
 .env.development
 .env.test
@@ -47,3 +47,7 @@ __tests__
 # Otros
 .DS_Store
 Thumbs.db
+
+# ⚠️ Carpetas del monorepo que no son el app móvil
+../main
+../planly-web
