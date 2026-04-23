@@ -1,0 +1,49 @@
+# Dependencias
+node_modules
+
+# Expo
+.expo
+web-build
+dist
+
+# Git
+.git
+
+# Android builds (temporales)
+android/.gradle
+android/build
+android/.idea
+ios/build
+ios/Pods
+
+# Logs y temporales
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos comprimidos y builds
+*.pdf
+*.zip
+*.rar
+*.apk
+*.aab
+
+# Editores
+.vscode
+.idea
+
+# Tests y coverage
+coverage
+__tests__
+*.test.js
+*.spec.js
+
+# Variables de entorno (si tienes archivos locales)
+.env.local
+.env.development
+.env.test
+
+# Otros
+.DS_Store
+Thumbs.db
