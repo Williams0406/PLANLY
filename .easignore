@@ -1,30 +1,28 @@
-main/
-planly-web/
-venv/
-.git/
-node_modules/
-.expo/
-web-build/
-dist/
-android/.gradle
-android/build
-android/.idea
-ios/build
-ios/Pods
-*.log
-*.apk
-*.aab
-*.zip
-*.rar
-*.pdf
-.vscode/
-.idea/
+# Proyectos hermanos
+main
+planly-web
+venv
+# Git
+.git
+# Carpetas de build/cache en cualquier nivel
+**/node_modules
+**/.expo
+**/.next
+**/dist
+**/build
+**/coverage
+**/__pycache__
+# Archivos pesados
+**/*.log
+**/*.map
+**/*.apk
+**/*.aab
+**/*.zip
+**/*.rar
+**/*.pdf
+# Variables de entorno
+.env.local
+.env*.local
+# Sistema
 .DS_Store
 Thumbs.db
-coverage/
-__tests__/
-*.test.js
-*.spec.js
-.env.local
-.env.development
-.env.test
