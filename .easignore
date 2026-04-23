@@ -1,5 +1,10 @@
+# Carpetas que no son el app móvil
+main/
+planly-web/
+
 # Dependencias
 node_modules
+planly/node_modules
 
 # Expo
 .expo
@@ -9,7 +14,7 @@ dist
 # Git
 .git
 
-# Android builds (temporales)
+# Android builds
 android/.gradle
 android/build
 android/.idea
@@ -47,7 +52,3 @@ __tests__
 # Otros
 .DS_Store
 Thumbs.db
-
-# ⚠️ Carpetas del monorepo que no son el app móvil
-../main
-../planly-web
