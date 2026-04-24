@@ -40,9 +40,13 @@ class UserPublicViewSet(viewsets.ReadOnlyModelViewSet):
         return UserPublicSerializer
 
     def get_queryset(self):
-        return User.objects.filter(is_active=True).exclude(id=self.request.user.id).select_related(
+        queryset = User.objects.filter(is_active=True).exclude(id=self.request.user.id).select_related(
             "persona_profile", "entidad"
         ).order_by("id")
+        tipo_usuario = self.request.query_params.get("tipo_usuario")
+        if tipo_usuario in {"persona", "entidad"}:
+            queryset = queryset.filter(tipo_usuario=tipo_usuario)
+        return queryset
 
 
 class FriendRequestViewSet(viewsets.ModelViewSet):

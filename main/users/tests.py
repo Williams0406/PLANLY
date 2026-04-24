@@ -142,3 +142,38 @@ class PersonaRegistrationTests(APITestCase):
         self.assertTrue(hasattr(user, "persona_profile"))
         self.assertEqual(user.persona_profile.nacionalidad, "Peruana")
         self.assertEqual(user.persona_profile.ciudad, "Lima")
+
+
+class UserPublicListTests(APITestCase):
+    def setUp(self):
+        self.current_user = User.objects.create_user(
+            username="current_persona",
+            password="pass1234",
+            tipo_usuario="persona",
+        )
+        self.persona_user = User.objects.create_user(
+            username="persona_visible",
+            password="pass1234",
+            tipo_usuario="persona",
+        )
+        self.entidad_user = User.objects.create_user(
+            username="entidad_visible",
+            password="pass1234",
+            tipo_usuario="entidad",
+        )
+        self.client.force_authenticate(self.current_user)
+
+    def test_lista_usuarios_filtra_por_tipo_usuario(self):
+        response = self.client.get(
+            reverse("usuarios-list"),
+            {"tipo_usuario": "persona"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = response.data["results"] if isinstance(response.data, dict) else response.data
+        usernames = [item["username"] for item in payload]
+
+        self.assertIn("persona_visible", usernames)
+        self.assertNotIn("entidad_visible", usernames)
+        self.assertNotIn("current_persona", usernames)

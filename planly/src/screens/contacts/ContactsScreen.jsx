@@ -49,8 +49,11 @@ export default function ContactsScreen({ navigation }) {
 
   const load = async () => {
     try {
-      const [usersRes, groupsRes] = await Promise.all([usersApi.getUsuarios(), groupsApi.getGrupos()]);
-      setContacts(normalizeList(usersRes.data));
+      const [usersRes, groupsRes] = await Promise.all([
+        usersApi.getUsuarios({ tipo_usuario: 'persona' }),
+        groupsApi.getGrupos(),
+      ]);
+      setContacts(normalizeList(usersRes.data).filter((user) => user.tipo_usuario === 'persona'));
       setGroups(normalizeList(groupsRes.data));
     } catch (e) {
       setContacts([]);
@@ -287,6 +290,7 @@ export default function ContactsScreen({ navigation }) {
         data={data}
         keyExtractor={(item) => item.id.toString()}
         renderItem={activeTab === 'usuarios' ? renderContactItem : renderGroupItem}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={
           <>
             <LinearGradient colors={['#0F172A', '#082F49', '#155E75']} style={styles.hero}>
