@@ -3,7 +3,8 @@ import apiClient from '@/lib/axios';
 export const entidadService = {
   async getPerfil() {
     const res = await apiClient.get('/services/entidades/');
-    return res.data.length > 0 ? res.data[0] : null;
+    const items = res.data.results || res.data;
+    return items.length > 0 ? items[0] : null;
   },
 
   async createPerfil(data) {

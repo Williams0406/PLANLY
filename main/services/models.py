@@ -1,5 +1,33 @@
 from django.conf import settings
 from django.db import models
+from django.utils.text import slugify
+
+
+class ServicioCategoria(models.Model):
+    nombre = models.CharField(max_length=120, unique=True)
+    slug = models.SlugField(max_length=140, unique=True, blank=True)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["orden", "nombre", "id"]
+        verbose_name = "Categoria de servicio"
+        verbose_name_plural = "Categorias de servicio"
+
+    def save(self, *args, **kwargs):
+        base_slug = slugify(self.slug or self.nombre) or "categoria"
+        slug = base_slug
+        suffix = 2
+        while ServicioCategoria.objects.exclude(pk=self.pk).filter(slug=slug).exists():
+            slug = f"{base_slug}-{suffix}"
+            suffix += 1
+        self.slug = slug
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
 
 
 class Entidad(models.Model):
@@ -59,6 +87,7 @@ class Servicio(models.Model):
     imagen_principal = models.ImageField(upload_to="servicios/", null=True, blank=True)
     imagenes = models.JSONField(default=list, blank=True)
     activo = models.BooleanField(default=True)
+    total_visualizaciones = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def precio_actual(self):

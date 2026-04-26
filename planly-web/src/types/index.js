@@ -7,6 +7,9 @@
  * @property {boolean} has_entidad_profile
  * @property {boolean} entidad_aprobada
  * @property {number|null} entidad_id
+ * @property {boolean} is_staff
+ * @property {boolean} is_superuser
+ * @property {boolean} is_admin
  */
 
 /**

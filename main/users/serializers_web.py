@@ -9,6 +9,7 @@ class UserMeSerializer(serializers.ModelSerializer):
     has_entidad_profile = serializers.SerializerMethodField()
     entidad_aprobada = serializers.SerializerMethodField()
     entidad_id = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -16,6 +17,7 @@ class UserMeSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'tipo_usuario',
             'has_persona_profile', 'has_entidad_profile',
             'entidad_aprobada', 'entidad_id',
+            'is_staff', 'is_superuser', 'is_admin',
         ]
 
     def get_has_persona_profile(self, obj):
@@ -33,6 +35,9 @@ class UserMeSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'entidad'):
             return obj.entidad.id
         return None
+
+    def get_is_admin(self, obj):
+        return bool(obj.is_staff or obj.is_superuser)
 
 
 class RegisterWebSerializer(serializers.ModelSerializer):

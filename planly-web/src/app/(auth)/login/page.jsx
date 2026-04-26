@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth.store';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Alert from '@/components/ui/Alert';
+import { getAuthenticatedHome } from '@/lib/auth-routing';
 
 const FontStyle = () => (
   <style>{`
@@ -32,11 +33,7 @@ export default function LoginPage() {
 
     try {
       const user = await login(form.username, form.password);
-      if (user.tipo_usuario === 'entidad') {
-        router.push('/dashboard');
-      } else {
-        router.push('/servicios');
-      }
+      router.push(getAuthenticatedHome(user));
     } catch (err) {
       setError(err.response?.data?.detail || 'Usuario o contraseña incorrectos');
     } finally {

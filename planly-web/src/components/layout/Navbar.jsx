@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { getAuthenticatedHome } from '@/lib/auth-routing';
 
 export default function Navbar() {
   const { user, isAuthenticated, init, logout } = useAuthStore();
@@ -32,14 +33,14 @@ export default function Navbar() {
     router.push('/');
   };
 
-  const dashboardHref = '/dashboard';
+  const dashboardHref = getAuthenticatedHome(user);
 
   const isLanding = pathname === '/';
 
   /* ── nav links ── */
   const navLinks = [
     { href: '/servicios', label: 'Explorar servicios' },
-    ...(isAuthenticated ? [{ href: dashboardHref, label: 'Dashboard' }] : []),
+    ...(isAuthenticated ? [{ href: dashboardHref, label: user?.is_admin ? 'Admin' : 'Mi espacio' }] : []),
   ];
 
   return (

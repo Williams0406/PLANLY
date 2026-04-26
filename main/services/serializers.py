@@ -1,5 +1,55 @@
+from django.db.models import Sum
 from rest_framework import serializers
-from .models import Entidad, ResenaEntidad, ResenaServicio, Servicio, ServicioHorario
+
+from .models import (
+    Entidad,
+    ResenaEntidad,
+    ResenaServicio,
+    Servicio,
+    ServicioCategoria,
+    ServicioHorario,
+)
+
+
+class ServicioCategoriaSerializer(serializers.ModelSerializer):
+    servicios_count = serializers.SerializerMethodField()
+    visualizaciones_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServicioCategoria
+        fields = [
+            "id",
+            "nombre",
+            "slug",
+            "descripcion",
+            "activo",
+            "orden",
+            "created_at",
+            "servicios_count",
+            "visualizaciones_count",
+        ]
+        read_only_fields = ["slug", "created_at", "servicios_count", "visualizaciones_count"]
+
+    def validate_nombre(self, value):
+        queryset = ServicioCategoria.objects.filter(nombre__iexact=value.strip())
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("Ya existe una categoria con ese nombre.")
+        return value.strip()
+
+    def get_servicios_count(self, obj):
+        annotated = getattr(obj, "servicios_count", None)
+        if annotated is not None:
+            return annotated
+        return Servicio.objects.filter(categoria=obj.nombre).count()
+
+    def get_visualizaciones_count(self, obj):
+        annotated = getattr(obj, "visualizaciones_count", None)
+        if annotated is not None:
+            return annotated
+        total = Servicio.objects.filter(categoria=obj.nombre).aggregate(total=Sum("total_visualizaciones"))["total"]
+        return total or 0
 
 
 class ResenaEntidadSerializer(serializers.ModelSerializer):
@@ -36,7 +86,7 @@ class ResenaServicioSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["usuario"] = self.context["request"].user
         return super().create(validated_data)
-    
+
 
 class EntidadSerializer(serializers.ModelSerializer):
     promedio_resenas = serializers.SerializerMethodField()
@@ -59,6 +109,49 @@ class EntidadSerializer(serializers.ModelSerializer):
         if hasattr(user, "entidad"):
             raise serializers.ValidationError("Este usuario ya tiene una entidad registrada.")
         return Entidad.objects.create(user=user, **validated_data)
+
+
+class EntidadAdminSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
+    telefono = serializers.CharField(source="user.telefono", read_only=True)
+    entidad_aprobada = serializers.BooleanField(source="aprobado", read_only=True)
+    date_joined = serializers.DateTimeField(source="user.date_joined", read_only=True)
+    servicios_activos = serializers.SerializerMethodField()
+    visualizaciones_totales = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Entidad
+        fields = [
+            "id",
+            "user_id",
+            "username",
+            "email",
+            "telefono",
+            "nombre_comercial",
+            "ruc",
+            "direccion",
+            "contacto_referencia",
+            "entidad_aprobada",
+            "aprobado",
+            "date_joined",
+            "servicios_activos",
+            "visualizaciones_totales",
+        ]
+
+    def get_servicios_activos(self, obj):
+        annotated = getattr(obj, "servicios_activos", None)
+        if annotated is not None:
+            return annotated
+        return obj.servicios.filter(activo=True).count()
+
+    def get_visualizaciones_totales(self, obj):
+        annotated = getattr(obj, "visualizaciones_totales", None)
+        if annotated is not None:
+            return annotated
+        total = obj.servicios.aggregate(total=Sum("total_visualizaciones"))["total"]
+        return total or 0
 
 
 class ServicioHorarioSerializer(serializers.ModelSerializer):
@@ -85,7 +178,7 @@ class ServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = "__all__"
-        read_only_fields = ["entidad", "created_at"]
+        read_only_fields = ["entidad", "created_at", "total_visualizaciones"]
 
     def get_precio_actual(self, obj):
         return obj.precio_actual()
@@ -124,7 +217,7 @@ class ServicioSerializer(serializers.ModelSerializer):
                 )
             if indice > 0 and horario["fecha_inicio"] < horarios_ordenados[indice - 1]["fecha_fin"]:
                 raise serializers.ValidationError(
-                    {"horarios": "Los horarios no deben superponerse entre sí."}
+                    {"horarios": "Los horarios no deben superponerse entre si."}
                 )
         return horarios_ordenados
 
@@ -147,8 +240,26 @@ class ServicioSerializer(serializers.ModelSerializer):
             return None
         return float(value)
 
+    def _validar_categoria(self, data):
+        should_validate = self.instance is None or "categoria" in data
+        if not should_validate:
+            return
+
+        categoria = (data.get("categoria") or "").strip()
+        if not categoria:
+            raise serializers.ValidationError({"categoria": "Selecciona una categoria valida."})
+
+        categoria_obj = ServicioCategoria.objects.filter(nombre__iexact=categoria, activo=True).first()
+        if not categoria_obj:
+            raise serializers.ValidationError({"categoria": "La categoria seleccionada no esta disponible."})
+
+        data["categoria"] = categoria_obj.nombre
+
     def _validar_forma_pago(self, data):
-        modalidad_pago = data.get("modalidad_pago", getattr(self.instance, "modalidad_pago", Servicio.MODALIDAD_PAGO_COMPLETO))
+        modalidad_pago = data.get(
+            "modalidad_pago",
+            getattr(self.instance, "modalidad_pago", Servicio.MODALIDAD_PAGO_COMPLETO),
+        )
         porcentaje_reserva = self._parse_percentage(
             data.get("porcentaje_reserva", getattr(self.instance, "porcentaje_reserva", None))
         )
@@ -220,8 +331,10 @@ class ServicioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         data["descripcion_forma_pago"] = descripcion_forma_pago
-    
+
     def validate(self, data):
+        self._validar_categoria(data)
+
         tiene_promocion = data.get("tiene_promocion", getattr(self.instance, "tiene_promocion", False))
         costo_promocional = data.get("costo_promocional", getattr(self.instance, "costo_promocional", None))
         costo_regular = data.get("costo_regular", getattr(self.instance, "costo_regular", None))
@@ -230,11 +343,13 @@ class ServicioSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Debe especificar costo promocional.")
             if costo_promocional >= costo_regular:
                 raise serializers.ValidationError("El costo promocional debe ser menor al regular.")
+
         horarios = data.get("horarios", serializers.empty)
         if horarios is not serializers.empty:
             if not horarios:
                 raise serializers.ValidationError({"horarios": "Debe agregar al menos un horario o enviar horas simples."})
             horarios = self._validar_horarios(horarios)
+
         self._sincronizar_horas_referencia(data, horarios if horarios is not serializers.empty else None)
         self._validar_forma_pago(data)
         return data
@@ -270,7 +385,11 @@ class ServicioPublicoSerializer(serializers.ModelSerializer):
     entidad_nombre = serializers.CharField(source="entidad.nombre_comercial", read_only=True)
     entidad_direccion = serializers.CharField(source="entidad.direccion", read_only=True)
     entidad_contacto = serializers.CharField(source="entidad.contacto_referencia", read_only=True)
-    entidad_imagenes = serializers.ListField(source="entidad.imagenes_promocionales", child=serializers.CharField(), read_only=True)
+    entidad_imagenes = serializers.ListField(
+        source="entidad.imagenes_promocionales",
+        child=serializers.CharField(),
+        read_only=True,
+    )
     entidad_imagen_principal = serializers.SerializerMethodField()
     precio_actual = serializers.SerializerMethodField()
     promedio_resenas = serializers.SerializerMethodField()
@@ -283,19 +402,39 @@ class ServicioPublicoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = [
-            "id", "entidad", "categoria", "nombre", "descripcion", "lugar", "hora_inicio", "hora_fin",
-            "capacidad_maxima", "precio_actual", "promedio_resenas", "total_resenas", "horarios",
-            "horario_resumen", "modalidad_pago", "modalidad_pago_label", "porcentaje_reserva",
-            "porcentaje_pago_previo", "dias_antes_pago_previo", "descripcion_forma_pago",
+            "id",
+            "entidad",
+            "categoria",
+            "nombre",
+            "descripcion",
+            "lugar",
+            "hora_inicio",
+            "hora_fin",
+            "capacidad_maxima",
+            "precio_actual",
+            "promedio_resenas",
+            "total_resenas",
+            "horarios",
+            "horario_resumen",
+            "modalidad_pago",
+            "modalidad_pago_label",
+            "porcentaje_reserva",
+            "porcentaje_pago_previo",
+            "dias_antes_pago_previo",
+            "descripcion_forma_pago",
             "forma_pago_resumen",
-            "entidad_nombre", "entidad_direccion", "entidad_contacto", "entidad_imagenes",
+            "entidad_nombre",
+            "entidad_direccion",
+            "entidad_contacto",
+            "entidad_imagenes",
             "entidad_imagen_principal",
-            "imagen_principal", "imagenes",
+            "imagen_principal",
+            "imagenes",
         ]
 
     def get_precio_actual(self, obj):
         return obj.precio_actual()
-    
+
     def get_promedio_resenas(self, obj):
         return obj.promedio_resenas()
 
@@ -317,7 +456,11 @@ class ServicioDetalleSerializer(serializers.ModelSerializer):
     entidad_nombre = serializers.CharField(source="entidad.nombre_comercial", read_only=True)
     entidad_direccion = serializers.CharField(source="entidad.direccion", read_only=True)
     entidad_contacto_referencia = serializers.CharField(source="entidad.contacto_referencia", read_only=True)
-    entidad_imagenes_promocionales = serializers.ListField(source="entidad.imagenes_promocionales", child=serializers.CharField(), read_only=True)
+    entidad_imagenes_promocionales = serializers.ListField(
+        source="entidad.imagenes_promocionales",
+        child=serializers.CharField(),
+        read_only=True,
+    )
     entidad_promedio_resenas = serializers.SerializerMethodField()
     entidad_total_resenas = serializers.SerializerMethodField()
     precio_actual = serializers.SerializerMethodField()
@@ -334,15 +477,44 @@ class ServicioDetalleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = [
-            "id", "entidad", "categoria", "nombre", "descripcion", "lugar", "hora_inicio", "hora_fin",
-            "capacidad_maxima", "costo_regular", "tiene_promocion", "costo_promocional",
-            "precio_actual", "descuento_porcentaje", "promedio_resenas", "total_resenas", "horarios",
-            "horario_resumen", "modalidad_pago", "modalidad_pago_label", "porcentaje_reserva",
-            "porcentaje_pago_previo", "dias_antes_pago_previo", "descripcion_forma_pago",
+            "id",
+            "entidad",
+            "categoria",
+            "nombre",
+            "descripcion",
+            "lugar",
+            "hora_inicio",
+            "hora_fin",
+            "capacidad_maxima",
+            "costo_regular",
+            "tiene_promocion",
+            "costo_promocional",
+            "precio_actual",
+            "descuento_porcentaje",
+            "promedio_resenas",
+            "total_resenas",
+            "horarios",
+            "horario_resumen",
+            "modalidad_pago",
+            "modalidad_pago_label",
+            "porcentaje_reserva",
+            "porcentaje_pago_previo",
+            "dias_antes_pago_previo",
+            "descripcion_forma_pago",
             "forma_pago_resumen",
-            "entidad_nombre", "entidad_direccion", "entidad_contacto_referencia",
-            "entidad_imagenes_promocionales", "entidad_promedio_resenas", "entidad_total_resenas",
-            "imagen_principal", "imagenes", "resenas", "resenas_entidad", "activo", "created_at",
+            "entidad_nombre",
+            "entidad_direccion",
+            "entidad_contacto_referencia",
+            "entidad_imagenes_promocionales",
+            "entidad_promedio_resenas",
+            "entidad_total_resenas",
+            "imagen_principal",
+            "imagenes",
+            "resenas",
+            "resenas_entidad",
+            "activo",
+            "created_at",
+            "total_visualizaciones",
         ]
 
     def get_precio_actual(self, obj):
@@ -352,7 +524,7 @@ class ServicioDetalleSerializer(serializers.ModelSerializer):
         if obj.tiene_promocion and obj.costo_promocional:
             return round(((obj.costo_regular - obj.costo_promocional) / obj.costo_regular) * 100, 1)
         return 0
-    
+
     def get_promedio_resenas(self, obj):
         return obj.promedio_resenas()
 

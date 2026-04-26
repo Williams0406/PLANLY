@@ -1,6 +1,11 @@
 import apiClient from '@/lib/axios';
 
 export const serviciosService = {
+  async getCategorias(params = {}) {
+    const res = await apiClient.get('/services/categorias/', { params });
+    return res.data;
+  },
+
   async getPublicos(params = {}) {
     const res = await apiClient.get('/services/web/servicios/', { params });
     return res.data;
